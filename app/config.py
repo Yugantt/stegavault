@@ -8,8 +8,9 @@ class Settings(BaseSettings):
     ENV: str = "development"
     DEBUG: bool = True
 
-    DATABASE_URL: str = "sqlite+aiosqlite:///./stegavault.db"
-    JWT_SECRET: str = "dev-only-change-in-production"
+    DATABASE_URL: str  # Required from .env (PostgreSQL)
+
+    JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

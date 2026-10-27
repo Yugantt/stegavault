@@ -1,0 +1,54 @@
+﻿# Virtual environment
+.venv/
+venv/
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Test images (temporary)
+test_cover.png
+veiled_test.png
+*.png
+*.jpg
+*.jpeg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Alembic (will regenerate)
+# (keep alembic/ tracked, only ignore versions temp)
+
+# Storage
+storage/

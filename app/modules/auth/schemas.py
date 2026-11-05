@@ -35,3 +35,11 @@ class UserResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class UpdateProfileRequest(BaseModel):
+    username: str | None = None
+    email: EmailStr | None = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

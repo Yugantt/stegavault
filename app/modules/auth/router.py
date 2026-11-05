@@ -1,5 +1,6 @@
-﻿from fastapi import APIRouter, Depends, Request
+﻿from fastapi import APIRouter, Depends, Request, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.database import get_db
 from app.modules.auth.deps import get_current_user
@@ -15,8 +16,15 @@ from app.modules.auth.schemas import (
     RegisterRequest,
     TokenResponse,
     UserResponse,
+    UpdateProfileRequest,
+    ChangePasswordRequest,
 )
-from app.modules.auth.service import authenticate, register_user
+from app.modules.auth.service import (
+    authenticate, 
+    register_user, 
+    hash_password, 
+    verify_password
+)
 from app.shared.exceptions import AuthError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -55,3 +63,57 @@ async def refresh(payload: RefreshRequest):
 @router.get("/me", response_model=UserResponse)
 async def me(current: User = Depends(get_current_user)):
     return current
+
+# ==========================================
+# NEW ENDPOINTS (Profile, Password, Delete)
+# ==========================================
+
+@router.patch("/profile", response_model=UserResponse)
+async def update_profile(
+    data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Check if username is being changed and is already taken
+    if data.username and data.username != current_user.username:
+        existing_user = await db.execute(select(User).where(User.username == data.username))
+        if existing_user.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Username already taken")
+        current_user.username = data.username
+        
+    # Check if email is being changed and is already registered
+    if data.email and data.email != current_user.email:
+        existing_email = await db.execute(select(User).where(User.email == data.email))
+        if existing_email.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Email already registered")
+        current_user.email = data.email
+
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Verify current password
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+    
+    # Hash and save new password
+    current_user.password_hash = hash_password(data.new_password)
+    await db.commit()
+    return {"message": "Password updated successfully"}
+
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await db.delete(current_user)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

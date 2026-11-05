@@ -1,0 +1,267 @@
+﻿@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0f14;
+  --color-bg-deep: #050807;
+  --color-surface: #131920;
+  --color-surface-2: #182029;
+  --color-surface-hover: #1c242f;
+  --color-border: #1e2938;
+  --color-border-bright: #2a3a4f;
+  --color-primary: #10b981;
+  --color-primary-dark: #059669;
+  --color-primary-glow: #34d399;
+  --color-accent-cyan: #00d9ff;
+  --color-accent-purple: #a78bfa;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-text: #e8f5ef;
+  --color-muted: #6b7c8f;
+  --color-muted-bright: #8b9cb1;
+  --color-glass: rgba(19, 25, 32, 0.72);
+  --color-glass-border: rgba(30, 41, 56, 0.7);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-heading: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html, body, #root {
+  min-height: 100%;
+  margin: 0;
+  background-color: #050807;
+  color: #e8f5ef;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+
+.glass {
+  background-color: rgba(19, 25, 32, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(30, 41, 56, 0.7);
+}
+
+.panel {
+  background-color: #131920;
+  border: 1px solid #1e2938;
+  border-radius: 14px;
+}
+
+.label-caps {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b7c8f;
+}
+
+.binary-grid-bg {
+  position: relative;
+  background-color: #030806;
+  overflow: hidden;
+}
+
+.binary-grid-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(0deg, transparent 0, transparent 39px, rgba(16, 185, 129, 0.15) 39px, rgba(16, 185, 129, 0.15) 40px), repeating-linear-gradient(90deg, transparent 0, transparent 39px, rgba(16, 185, 129, 0.15) 39px, rgba(16, 185, 129, 0.15) 40px);
+  background-size: 40px 40px;
+  animation: grid-shift 4s linear infinite;
+  pointer-events: none;
+}
+
+.binary-grid-bg::after {
+  content: "1 0 1 1 0 0 1 0 1 1 0 0 1 0 1 1 0 1 0 0 1 1 0 1 0 1 0 0 1 1 0 1 0 1 1 0 0 1 0 1 1 0 1 0 1 1 0 0 1 0 1 1 0 1 0 1 0 0 1 1 0 1 0 1 1 0 0 1 0 1 0 1 0 0 1 1 0 1 0 1 1 0 1 0 1 1 0 0 1 0 1 1 0 1 0 1 0 0 1 1 0 1 0 1 1 0 0 1 0 1 1 0 1 0 1 1 0 0 1 0 1 1 0 1 0 1 0 0 1 1 0 1 0 1 1 0 0 1 0 1 1 0 1 0 1";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 2;
+  letter-spacing: 50px;
+  word-spacing: 10px;
+  color: rgba(16, 185, 129, 0.25);
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  overflow: hidden;
+  animation: matrix-fall 8s linear infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+.binary-grid-bg > .light-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(-62.5deg, transparent 0%, rgba(16, 185, 129, 0.3) 45%, rgba(16, 185, 129, 0.5) 50%, rgba(16, 185, 129, 0.3) 55%, transparent 100%);
+  background-size: 400% 100%;
+  mix-blend-mode: screen;
+  animation: light-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes grid-shift {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 40px 40px, 40px 40px; }
+}
+
+@keyframes matrix-fall {
+  0% { transform: translate(0, -50%); }
+  100% { transform: translate(0, 0%); }
+}
+
+@keyframes light-sweep {
+  0%, 100% { background-position: 10% 0; }
+  50% { background-position: 90% 0; }
+}
+
+
+@keyframes scan {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(50%); }
+}
+
+/* ================= AI MATRIX LOADER ================= */
+.ai-matrix-loader {
+  width: 120px;
+  height: 160px;
+  margin: 30px auto;
+  position: relative;
+  perspective: 800px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.digit {
+  color: #00ff88;
+  font-family: monospace;
+  font-size: 18px;
+  text-align: center;
+  text-shadow: 0 0 5px #00ff88;
+  animation: matrix-fall 2s infinite, matrix-flicker 0.5s infinite;
+  opacity: 0;
+}
+
+.digit:nth-child(1) { animation-delay: 0.1s; }
+.digit:nth-child(2) { animation-delay: 0.3s; }
+.digit:nth-child(3) { animation-delay: 0.5s; }
+.digit:nth-child(4) { animation-delay: 0.7s; }
+.digit:nth-child(5) { animation-delay: 0.9s; }
+.digit:nth-child(6) { animation-delay: 1.1s; }
+.digit:nth-child(7) { animation-delay: 1.3s; }
+.digit:nth-child(8) { animation-delay: 1.5s; }
+
+.glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(0, 255, 136, 0.1) 0%, transparent 70%);
+  animation: matrix-pulse 2s infinite;
+}
+
+@keyframes matrix-fall {
+  0%   { transform: translateY(-50px) rotateX(90deg);  opacity: 0; }
+  20%, 80% { transform: translateY(0) rotateX(0deg);   opacity: 0.8; }
+  100% { transform: translateY(50px) rotateX(-90deg); opacity: 0; }
+}
+
+@keyframes matrix-flicker {
+  0%, 19%, 21%, 100% { opacity: 0.8; }
+  20% { opacity: 0.2; }
+}
+
+@keyframes matrix-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 0.7; }
+}
+
+/* ================= TRUCK LOADER ================= */
+.loader {
+  width: fit-content;
+  height: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.truckWrapper {
+  width: 200px;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  align-items: center;
+  justify-content: flex-end;
+  overflow-x: hidden;
+}
+
+.truckBody {
+  width: 130px;
+  height: fit-content;
+  margin-bottom: 6px;
+  animation: motion 1s linear infinite;
+}
+
+@keyframes motion {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+
+.truckTires {
+  width: 130px;
+  height: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 0 15px;
+  position: absolute;
+  bottom: 0;
+}
+
+.truckTires svg {
+  width: 24px;
+}
+
+.road {
+  width: 100%;
+  height: 1.5px;
+  background-color: #282828;
+  position: relative;
+  bottom: 0;
+  align-self: flex-end;
+  border-radius: 3px;
+}
+
+.road::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 100%;
+  background-color: #282828;
+  right: -50%;
+  border-radius: 3px;
+  animation: roadAnimation 1.4s linear infinite;
+  border-left: 10px solid white;
+}
+
+.road::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 100%;
+  background-color: #282828;
+  right: -65%;
+  border-radius: 3px;
+  animation: roadAnimation 1.4s linear infinite;
+  border-left: 4px solid white;
+}
+
+@keyframes roadAnimation {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-350px); }
+}

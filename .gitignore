@@ -1,6 +1,11 @@
 ﻿# Virtual environment
 .venv/
 venv/
+env/
+
+# Node modules (MUST!)
+node_modules/
+**/node_modules/
 
 # Environment secrets
 .env
@@ -27,12 +32,9 @@ dist/
 .coverage
 htmlcov/
 
-# Test images (temporary)
+# Test images (temporary - specific only, NOT all images)
 test_cover.png
 veiled_test.png
-*.png
-*.jpg
-*.jpeg
 
 # IDE
 .vscode/
@@ -47,8 +49,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Alembic (will regenerate)
-# (keep alembic/ tracked, only ignore versions temp)
-
 # Storage
 storage/
+
+# NPM logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

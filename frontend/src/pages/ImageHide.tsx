@@ -223,7 +223,7 @@ export default function ImageHide() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { id: 'image', title: 'Image Hide', desc: 'PNG, JPG, BMP', icon: ImageIcon, active: true },
-                { id: 'audio', title: 'Audio Hide', desc: 'WAV, MP3', icon: Music, active: false },
+                { id: 'audio', title: 'Audio Hide', desc: 'WAV, MP3', icon: Music, active: true },
                 { id: 'video', title: 'Video Hide', desc: 'MP4, AVI', icon: Video, active: false },
                 { id: 'cross', title: 'Cross Media', desc: 'Any to Any', icon: Globe, active: false },
               ].map((op) => (
@@ -231,6 +231,7 @@ export default function ImageHide() {
                   key={op.id}
                   disabled={!op.active}
                   onClick={() => {
+                    if (op.id === 'audio') { window.location.href = '/stego/audio'; return; }
                     setOperation(op.id as Operation)
                     setStep(2)
                   }}
@@ -600,3 +601,4 @@ export default function ImageHide() {
     </div>
   )
 }
+

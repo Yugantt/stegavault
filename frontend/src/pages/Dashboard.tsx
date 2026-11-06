@@ -15,6 +15,8 @@ import type { HistoryStats, HistoryList, HistoryEntry } from '../types'
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
   const [stats, setStats] = useState<HistoryStats | null>(null)
+  const [audioStats, setAudioStats] = useState({ h: 0, e: 0 })
+  const [imageStats, setImageStats] = useState({ h: 0, e: 0 })
   const [recent, setRecent] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -26,11 +28,27 @@ export default function Dashboard() {
       try {
         const [statsRes, historyRes] = await Promise.all([
           api.get<HistoryStats>('/history/stats').catch(() => ({ data: null })),
-          api.get<HistoryList>('/history?limit=5&offset=0').catch(() => ({ data: { items: [] } }))
+          api.get<HistoryList>('/history?limit=100&offset=0').catch(() => ({ data: { items: [] } }))
         ])
-        if (mounted) {
+                if (mounted) {
           setStats(statsRes.data)
-          setRecent(historyRes.data?.items || [])
+          const items = historyRes.data?.items || []
+          setRecent(items.slice(0, 5)) // Sirf 5 dikhane ke liye
+
+          // Module-wise counts calculate karo
+          let aH = 0, aE = 0, iH = 0, iE = 0
+          items.forEach((item: any) => {
+            if (item.status !== 'success') return
+            if (item.module === 'audio') {
+              if (item.action === 'hide') aH++
+              if (item.action === 'extract') aE++
+            } else {
+              if (item.action === 'hide') iH++
+              if (item.action === 'extract') iE++
+            }
+          })
+          setAudioStats({ h: aH, e: aE })
+          setImageStats({ h: iH, e: iE })
         }
       } catch (err) {
         if (mounted) setError(getApiErrorMessage(err, 'Failed to sync telemetry'))
@@ -213,8 +231,8 @@ export default function Dashboard() {
           <h3 className="text-base font-bold text-white mb-4">Operation Statistics</h3>
           <div className="space-y-4">
             {[
-              { label: 'Image', hide: stats?.hides || 0, extract: stats?.extracts || 0, icon: ImageIcon },
-              { label: 'Audio', hide: 0, extract: 0, icon: Music },
+              { label: 'Image', hide: imageStats.h, extract: imageStats.e, icon: ImageIcon },
+              { label: 'Audio', hide: audioStats.h, extract: audioStats.e, icon: Music },
               { label: 'Video', hide: 0, extract: 0, icon: Video },
             ].map((stat, i) => (
               <div key={i} className="flex items-center justify-between">
@@ -267,7 +285,7 @@ export default function Dashboard() {
             { label: 'Total Ops', val: stats?.total_operations || 0 },
             { label: 'Success', val: (stats?.hides || 0) + (stats?.extracts || 0) },
             { label: 'Failed', val: stats?.failures || 0 },
-            { label: 'Success Rate', val: '100%' },
+            { label: 'Success Rate', val: stats?.total_operations ? Math.round(((stats.total_operations - (stats.failures || 0)) / stats.total_operations) * 100) + '%' : '100%' },
           ].map((item, i) => (
             <div key={i} className="p-4 rounded-xl bg-[#0B0F14] border border-slate-800 text-center">
               <p className="text-[10px] text-slate-400 uppercase tracking-wider">{item.label}</p>
@@ -325,4 +343,6 @@ export default function Dashboard() {
     </div>
   )
 }
+
+
 

@@ -8,6 +8,7 @@ import {
   MessageSquare, LifeBuoy, FileText, Send
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import CapacityModal from '../components/CapacityModal'
 import { api, getApiErrorMessage } from '../lib/api'
 import type { HistoryStats, HistoryList, HistoryEntry } from '../types'
 
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isCalcOpen, setIsCalcOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -41,7 +43,7 @@ export default function Dashboard() {
   }, [])
 
   return (
-    <div className="space-y-10 max-w-[1400px] mx-auto pb-20 selection:bg-emerald-500 selection:text-black">
+    <div className="space-y-10 max-w-[1400px] mx-auto pb-20 selection:bg-emerald-500 selection:text-black">`n      <CapacityModal isOpen={isCalcOpen} onClose={() => setIsCalcOpen(false)} />
       
       {error && (
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2">
@@ -212,7 +214,7 @@ export default function Dashboard() {
           <div className="space-y-4">
             {[
               { label: 'Image', hide: stats?.hides || 0, extract: stats?.extracts || 0, icon: ImageIcon },
-              { label: 'Audio', hide: 0, extract: 0, icon: Music },
+              { label: 'Audio', hide: (stats as any)?.audio_hides ?? stats?.hides ?? 0, extract: (stats as any)?.audio_extracts ?? stats?.extracts ?? 0, icon: Music },
               { label: 'Video', hide: 0, extract: 0, icon: Video },
             ].map((stat, i) => (
               <div key={i} className="flex items-center justify-between">
@@ -237,10 +239,8 @@ export default function Dashboard() {
           <div className="flex-1">
             <h3 className="text-base font-bold text-white">Payload Capacity Calculator</h3>
             <p className="text-xs text-slate-400 mt-1 mb-3">Estimate how much secret data your file can hold.</p>
-            <button className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors">
-              Open Calculator
-            </button>
-            <p className="text-[9px] text-amber-500 mt-2">* Backend API pending</p>
+            <button onClick={() => setIsCalcOpen(true)} className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors">`n              Open Calculator`n            </button>
+            
           </div>
         </div>
 
@@ -267,7 +267,7 @@ export default function Dashboard() {
             { label: 'Total Ops', val: stats?.total_operations || 0 },
             { label: 'Success', val: (stats?.hides || 0) + (stats?.extracts || 0) },
             { label: 'Failed', val: stats?.failures || 0 },
-            { label: 'Success Rate', val: '100%' },
+            { label: 'Success Rate', val: stats?.total_operations ? Math.round(((stats.total_operations - (stats.failures || 0)) / stats.total_operations) * 100) + '%' : '100%' },
           ].map((item, i) => (
             <div key={i} className="p-4 rounded-xl bg-[#0B0F14] border border-slate-800 text-center">
               <p className="text-[10px] text-slate-400 uppercase tracking-wider">{item.label}</p>
@@ -325,3 +325,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+

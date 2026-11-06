@@ -17,6 +17,7 @@ import History from './pages/History'
 import Settings from './pages/Settings'
 import Admin from './pages/Admin'
 import ComingSoon from './pages/ComingSoon'
+import AudioHide from './pages/AudioHide'
 import Preview3D from './pages/Preview3D'
 import Help from './pages/Help'
 import NotFound from './pages/NotFound'
@@ -87,7 +88,7 @@ function AppContent() {
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/help" element={<Help />} />
-            <Route path="/stego/audio" element={<ComingSoon />} />
+            <Route path="/stego/audio" element={<AudioHide />} />
             <Route path="/stego/video" element={<ComingSoon />} />
             <Route path="/stego/scan" element={<ComingSoon />} />
 
@@ -111,3 +112,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+

@@ -3,18 +3,23 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Shield,
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  User as UserIcon,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
+  Shield, Eye, EyeOff, Mail, Lock, User as UserIcon,
+  ArrowRight, AlertCircle, CheckCircle2, XCircle,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+
+const CURRENT_YEAR = new Date().getFullYear()
+
+const STRENGTH_LABELS = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'] as const
+const STRENGTH_TEXT = ['text-danger', 'text-danger', 'text-warning', 'text-primary', 'text-primary'] as const
+const STRENGTH_BAR = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-primary', 'bg-primary'] as const
+
+const BENEFITS = [
+  'AES-256-GCM authenticated encryption',
+  'Argon2id password-based key derivation',
+  'Zero visual trace in carrier images',
+  'Full operation history & audit trail',
+] as const
 
 function passwordStrength(pwd: string): {
   score: 0 | 1 | 2 | 3 | 4
@@ -29,9 +34,24 @@ function passwordStrength(pwd: string): {
   if (/[^A-Za-z0-9]/.test(pwd)) score++
 
   const capped = Math.min(score, 4) as 0 | 1 | 2 | 3 | 4
-  const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong']
-  const colors = ['text-danger', 'text-danger', 'text-warning', 'text-primary', 'text-primary']
-  return { score: capped, label: labels[capped], color: colors[capped] }
+  return { score: capped, label: STRENGTH_LABELS[capped], color: STRENGTH_TEXT[capped] }
+}
+
+function BrandLogo({ glow = false }: { glow?: boolean }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className={`w-10 h-10 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center text-primary ${
+          glow ? 'shadow-[0_0_20px_rgba(16,185,129,0.4)]' : ''
+        }`}
+      >
+        <Shield size={20} />
+      </div>
+      <span className="font-heading font-extrabold text-xl tracking-tight text-white">
+        Stega<span className="text-primary">Vault</span>
+      </span>
+    </div>
+  )
 }
 
 export default function Register() {
@@ -50,7 +70,9 @@ export default function Register() {
   const clearError = useAuthStore((s) => s.clearError)
 
   const strength = passwordStrength(password)
-  const passwordsMatch = password && password === confirmPassword
+  const passwordsMatch = password.length > 0 && password === confirmPassword
+  const passwordTooShort = password.length > 0 && password.length < 8
+  const confirmMismatch = confirmPassword.length > 0 && !passwordsMatch
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -110,13 +132,8 @@ export default function Register() {
         />
 
         <div className="relative h-full flex flex-col justify-between p-12 z-10">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-              <Shield size={20} />
-            </div>
-            <span className="font-heading font-extrabold text-xl tracking-tight text-white">
-              Stega<span className="text-primary">Vault</span>
-            </span>
+          <Link to="/">
+            <BrandLogo glow />
           </Link>
 
           <div className="max-w-md">
@@ -133,20 +150,9 @@ export default function Register() {
             </p>
 
             <ul className="mt-8 space-y-3 text-sm">
-              {[
-                'AES-256-GCM authenticated encryption',
-                'Argon2id password-based key derivation',
-                'Zero visual trace in carrier images',
-                'Full operation history & audit trail',
-              ].map((item, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2.5 text-white/85"
-                >
-                  <CheckCircle2
-                    size={16}
-                    className="text-primary mt-0.5 shrink-0"
-                  />
+              {BENEFITS.map((item) => (
+                <li key={item} className="flex items-start gap-2.5 text-white/85">
+                  <CheckCircle2 size={16} className="text-primary mt-0.5 shrink-0" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -154,7 +160,7 @@ export default function Register() {
           </div>
 
           <div className="text-[10px] font-mono text-white/50 uppercase tracking-widest">
-            © {new Date().getFullYear()} StegaVault · Secure Platform
+            © {CURRENT_YEAR} StegaVault · Secure Platform
           </div>
         </div>
       </div>
@@ -172,16 +178,8 @@ export default function Register() {
         </div>
 
         <div className="relative w-full max-w-md py-8">
-          <Link
-            to="/"
-            className="lg:hidden flex items-center justify-center gap-2.5 mb-8"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center text-primary">
-              <Shield size={20} />
-            </div>
-            <span className="font-heading font-extrabold text-xl text-white">
-              Stega<span className="text-primary">Vault</span>
-            </span>
+          <Link to="/" className="lg:hidden flex items-center justify-center mb-8">
+            <BrandLogo />
           </Link>
 
           <div className="glass rounded-2xl p-8 md:p-10 shadow-2xl border border-glass-border">
@@ -204,7 +202,10 @@ export default function Register() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username */}
               <div>
-                <label className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="register-username"
+                  className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2"
+                >
                   Username
                 </label>
                 <div className="relative">
@@ -213,6 +214,8 @@ export default function Register() {
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                   />
                   <input
+                    id="register-username"
+                    name="username"
                     type="text"
                     required
                     value={username}
@@ -228,7 +231,10 @@ export default function Register() {
 
               {/* Email */}
               <div>
-                <label className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="register-email"
+                  className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2"
+                >
                   Email Address
                 </label>
                 <div className="relative">
@@ -237,6 +243,8 @@ export default function Register() {
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                   />
                   <input
+                    id="register-email"
+                    name="email"
                     type="email"
                     required
                     value={email}
@@ -250,7 +258,10 @@ export default function Register() {
 
               {/* Password */}
               <div>
-                <label className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="register-password"
+                  className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -259,6 +270,8 @@ export default function Register() {
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                   />
                   <input
+                    id="register-password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
@@ -266,11 +279,14 @@ export default function Register() {
                     placeholder="At least 8 characters"
                     autoComplete="new-password"
                     minLength={8}
+                    aria-invalid={passwordTooShort}
+                    aria-describedby={password ? 'password-strength' : undefined}
                     className="w-full pl-11 pr-12 py-3 rounded-xl bg-bg-deep/60 border border-border text-white placeholder-muted/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all font-mono text-sm"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-white transition-colors cursor-pointer"
                     tabIndex={-1}
                   >
@@ -278,21 +294,18 @@ export default function Register() {
                   </button>
                 </div>
 
-                {/* Strength bar */}
                 {password && (
-                  <div className="mt-2 space-y-1.5">
+                  <div
+                    id="password-strength"
+                    className="mt-2 space-y-1.5"
+                    aria-live="polite"
+                  >
                     <div className="flex gap-1">
                       {[0, 1, 2, 3].map((i) => (
                         <div
                           key={i}
                           className={`h-1 flex-1 rounded-full transition-all ${
-                            i < strength.score
-                              ? strength.score === 1
-                                ? 'bg-danger'
-                                : strength.score === 2
-                                ? 'bg-warning'
-                                : 'bg-primary'
-                              : 'bg-border'
+                            i < strength.score ? STRENGTH_BAR[strength.score] : 'bg-border'
                           }`}
                         />
                       ))}
@@ -306,7 +319,10 @@ export default function Register() {
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="register-confirm-password"
+                  className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2"
+                >
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -315,12 +331,15 @@ export default function Register() {
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                   />
                   <input
+                    id="register-confirm-password"
+                    name="confirm-password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter your password"
                     autoComplete="new-password"
+                    aria-invalid={confirmMismatch}
                     className={`w-full pl-11 pr-12 py-3 rounded-xl bg-bg-deep/60 border text-white placeholder-muted/50 focus:outline-none focus:ring-2 transition-all font-mono text-sm ${
                       confirmPassword
                         ? passwordsMatch
@@ -342,12 +361,10 @@ export default function Register() {
               </div>
 
               {/* Terms */}
-              <label className="flex items-start gap-2.5 text-xs text-muted-bright cursor-pointer select-none pt-2">
+              <label className="flex items-start gap-2.5 text-xs text-muted-bright cursor-pointer select-none pt-2 group">
                 <span
-                  className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-all ${
-                    termsAccepted
-                      ? 'bg-primary border-primary'
-                      : 'bg-bg-deep border-border'
+                  className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-all group-focus-within:ring-2 group-focus-within:ring-primary/50 group-focus-within:ring-offset-2 group-focus-within:ring-offset-bg-deep ${
+                    termsAccepted ? 'bg-primary border-primary' : 'bg-bg-deep border-border'
                   }`}
                 >
                   {termsAccepted && (
@@ -356,19 +373,20 @@ export default function Register() {
                 </span>
                 <input
                   type="checkbox"
+                  name="terms"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
                   className="sr-only"
                 />
                 <span>
                   I agree to the{' '}
-                  <a href="#" className="text-primary hover:underline">
+                  <Link to="/terms" className="text-primary hover:underline">
                     Terms of Service
-                  </a>{' '}
+                  </Link>{' '}
                   and{' '}
-                  <a href="#" className="text-primary hover:underline">
+                  <Link to="/privacy" className="text-primary hover:underline">
                     Privacy Policy
-                  </a>
+                  </Link>
                   .
                 </span>
               </label>

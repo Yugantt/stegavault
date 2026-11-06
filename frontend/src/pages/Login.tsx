@@ -3,22 +3,35 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Shield,
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2,
+  Shield, Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
+const REMEMBER_KEY = 'sv_remember_email'
+const CURRENT_YEAR = new Date().getFullYear()
+
+function BrandLogo({ glow = false }: { glow?: boolean }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className={`w-10 h-10 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center text-primary ${
+          glow ? 'shadow-[0_0_20px_rgba(16,185,129,0.4)]' : ''
+        }`}
+      >
+        <Shield size={20} />
+      </div>
+      <span className="font-heading font-extrabold text-xl tracking-tight text-white">
+        Stega<span className="text-primary">Vault</span>
+      </span>
+    </div>
+  )
+}
+
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem(REMEMBER_KEY) ?? '')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [remember, setRemember] = useState(true)
+  const [remember, setRemember] = useState(() => localStorage.getItem(REMEMBER_KEY) !== null)
 
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
@@ -31,11 +44,8 @@ export default function Login() {
     clearError()
     const success = await login(email.trim(), password)
     if (success) {
-      if (remember) {
-        localStorage.setItem('sv_remember_email', email.trim())
-      } else {
-        localStorage.removeItem('sv_remember_email')
-      }
+      if (remember) localStorage.setItem(REMEMBER_KEY, email.trim())
+      else localStorage.removeItem(REMEMBER_KEY)
       navigate('/dashboard', { replace: true })
     }
   }
@@ -52,8 +62,6 @@ export default function Login() {
         />
         <div className="absolute inset-0 bg-gradient-to-br from-bg-deep/90 via-bg-deep/50 to-bg-deep/90" />
         <div className="absolute inset-0 bg-gradient-to-t from-bg-deep to-transparent" />
-
-        {/* Emerald glow */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -62,19 +70,11 @@ export default function Login() {
           }}
         />
 
-        {/* Content */}
         <div className="relative h-full flex flex-col justify-between p-12 z-10">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-              <Shield size={20} />
-            </div>
-            <span className="font-heading font-extrabold text-xl tracking-tight text-white">
-              Stega<span className="text-primary">Vault</span>
-            </span>
+          <Link to="/">
+            <BrandLogo glow />
           </Link>
 
-          {/* Tagline */}
           <div className="max-w-md">
             <h2 className="font-heading text-4xl font-extrabold text-white leading-tight mb-4 drop-shadow-2xl">
               Your Secrets.
@@ -110,16 +110,14 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Footer note */}
           <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
-            © {new Date().getFullYear()} StegaVault · Secure Platform
+            © {CURRENT_YEAR} StegaVault · Secure Platform
           </div>
         </div>
       </div>
 
       {/* ============ RIGHT — LOGIN FORM ============ */}
       <div className="relative flex items-center justify-center p-6 lg:p-12">
-        {/* Mobile-only background */}
         <div className="absolute inset-0 lg:hidden">
           <img
             src="/mountain.jpg"
@@ -131,20 +129,10 @@ export default function Login() {
         </div>
 
         <div className="relative w-full max-w-md">
-          {/* Mobile logo */}
-          <Link
-            to="/"
-            className="lg:hidden flex items-center justify-center gap-2.5 mb-8"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center text-primary">
-              <Shield size={20} />
-            </div>
-            <span className="font-heading font-extrabold text-xl text-white">
-              Stega<span className="text-primary">Vault</span>
-            </span>
+          <Link to="/" className="lg:hidden flex items-center justify-center mb-8">
+            <BrandLogo />
           </Link>
 
-          {/* Form card */}
           <div className="glass rounded-2xl p-8 md:p-10 shadow-2xl border border-glass-border">
             <div className="mb-8">
               <h1 className="font-heading text-3xl font-extrabold text-white mb-2">
@@ -163,9 +151,11 @@ export default function Login() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
               <div>
-                <label className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="login-email"
+                  className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2"
+                >
                   Email Address
                 </label>
                 <div className="relative">
@@ -174,6 +164,8 @@ export default function Login() {
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                   />
                   <input
+                    id="login-email"
+                    name="email"
                     type="email"
                     required
                     value={email}
@@ -185,9 +177,11 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Password */}
               <div>
-                <label className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="login-password"
+                  className="block text-xs font-mono text-muted-bright uppercase tracking-wider mb-2"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -196,6 +190,8 @@ export default function Login() {
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                   />
                   <input
+                    id="login-password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
@@ -206,7 +202,8 @@ export default function Login() {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-white transition-colors cursor-pointer"
                     tabIndex={-1}
                   >
@@ -215,20 +212,18 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Remember + Forgot */}
               <div className="flex items-center justify-between text-xs">
-                <label className="flex items-center gap-2 text-muted-bright cursor-pointer select-none">
+                <label className="flex items-center gap-2 text-muted-bright cursor-pointer select-none group">
                   <span
-                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                      remember
-                        ? 'bg-primary border-primary'
-                        : 'bg-bg-deep border-border'
+                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all group-focus-within:ring-2 group-focus-within:ring-primary/50 group-focus-within:ring-offset-2 group-focus-within:ring-offset-bg-deep ${
+                      remember ? 'bg-primary border-primary' : 'bg-bg-deep border-border'
                     }`}
                   >
                     {remember && <CheckCircle2 size={12} className="text-bg-deep" />}
                   </span>
                   <input
                     type="checkbox"
+                    name="remember"
                     checked={remember}
                     onChange={(e) => setRemember(e.target.checked)}
                     className="sr-only"
@@ -244,7 +239,6 @@ export default function Login() {
                 </Link>
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -267,7 +261,6 @@ export default function Login() {
               </button>
             </form>
 
-            {/* Divider */}
             <div className="my-7 flex items-center gap-4">
               <div className="flex-1 h-px bg-border" />
               <span className="text-[10px] font-mono text-muted uppercase tracking-widest">
@@ -276,7 +269,6 @@ export default function Login() {
               <div className="flex-1 h-px bg-border" />
             </div>
 
-            {/* Register link */}
             <p className="text-center text-sm text-muted-bright">
               Don't have an account?{' '}
               <Link
@@ -288,7 +280,6 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Bottom note */}
           <p className="mt-6 text-center text-[10px] font-mono text-muted uppercase tracking-widest">
             Protected by AES-256-GCM · Argon2id
           </p>

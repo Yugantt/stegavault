@@ -4,150 +4,102 @@ import {
   HelpCircle, Search, ChevronDown, Mail, MessageSquare,
   FileText, LifeBuoy, BookOpen, Shield, Lock, Send,
   CheckCircle2, AlertCircle, Keyboard, Image as ImageIcon,
-  KeyRound, User, Sparkles, ExternalLink
+  User, Sparkles, Info,
 } from 'lucide-react'
-import { api, getApiErrorMessage } from '../lib/api'
+import type { LucideIcon } from 'lucide-react'
+import { api } from '../lib/api'
 import Loader from '../components/Loader'
 
-interface FAQItem {
-  q: string
-  a: string
-}
+interface FAQItem { q: string; a: string }
+interface FAQCategory { category: string; icon: LucideIcon; items: FAQItem[] }
 
-interface FAQCategory {
-  category: string
-  icon: any
-  items: FAQItem[]
-}
+type Notice = { kind: 'success' | 'error' | 'info'; text: string } | null
 
 const FAQ_DATA: FAQCategory[] = [
   {
     category: 'Getting Started',
     icon: BookOpen,
     items: [
-      {
-        q: 'What is StegaVault?',
-        a: 'StegaVault is a steganography tool that hides secret messages and files inside ordinary images. It uses LSB (Least Significant Bit) embedding plus AES-256 encryption, so the hidden data is invisible to the human eye and locked behind a password of your choice.',
-      },
-      {
-        q: 'Do I need an account to use it?',
-        a: 'Yes. An account is required to access the hide and extract features, and to keep a personal operation history. Sign up takes less than a minute.',
-      },
-      {
-        q: 'Is StegaVault free?',
-        a: 'Yes, all core features — image hide, image extract, and history — are free forever. Premium features like audio/video hiding and batch operations are on the roadmap.',
-      },
-      {
-        q: 'How do I hide my first secret?',
-        a: '1) Go to Hide Secret. 2) Pick "Image Hide". 3) Upload your carrier image (PNG/JPG/BMP). 4) Type your secret text or upload a secret image. 5) Set a password (highly recommended). 6) Click "Encrypt & Hide Secret". 7) Download the stego file.',
-      },
+      { q: 'What is StegaVault?', a: 'StegaVault is a steganography tool that hides secret messages and files inside ordinary images. It uses LSB (Least Significant Bit) embedding plus AES-256 encryption, so the hidden data is invisible to the human eye and locked behind a password of your choice.' },
+      { q: 'Do I need an account to use it?', a: 'Yes. An account is required to access the hide and extract features, and to keep a personal operation history. Sign up takes less than a minute.' },
+      { q: 'Is StegaVault free?', a: 'Yes, all core features — image hide, image extract, and history — are free forever. Premium features like audio/video hiding and batch operations are on the roadmap.' },
+      { q: 'How do I hide my first secret?', a: '1) Go to Hide Secret. 2) Pick "Image Hide". 3) Upload your carrier image (PNG/JPG/BMP). 4) Type your secret text or upload a secret image. 5) Set a password (highly recommended). 6) Click "Encrypt & Hide Secret". 7) Download the stego file.' },
     ],
   },
   {
     category: 'Hiding Files',
     icon: ImageIcon,
     items: [
-      {
-        q: 'What file formats are supported?',
-        a: 'Currently: PNG, JPG, and BMP for the carrier image, and PNG/JPG for secret images. Audio (WAV/MP3) and video (MP4/AVI) support is coming soon.',
-      },
-      {
-        q: 'How much data can I hide?',
-        a: 'Capacity depends on the carrier image size. A rough rule: 1 MB of image ≈ 0.5 MB of hidden data. StegaVault shows the exact capacity right after you upload the carrier.',
-      },
-      {
-        q: 'Will the image look different after hiding?',
-        a: 'No. Steganography only modifies the least significant bits — changes that are imperceptible to the human eye. Side-by-side, the original and the stego look identical.',
-      },
-      {
-        q: 'Can I hide text and an image together?',
-        a: 'Not yet. Each operation carries either text OR one image. Combined payloads are on the roadmap for a future release.',
-      },
+      { q: 'What file formats are supported?', a: 'Currently: PNG, JPG, and BMP for the carrier image, and PNG/JPG for secret images. Audio (WAV/MP3) and video (MP4/AVI) support is coming soon.' },
+      { q: 'How much data can I hide?', a: 'Capacity depends on the carrier image size. A rough rule: 1 MB of image ≈ 0.5 MB of hidden data. StegaVault shows the exact capacity right after you upload the carrier.' },
+      { q: 'Will the image look different after hiding?', a: 'No. Steganography only modifies the least significant bits — changes that are imperceptible to the human eye. Side-by-side, the original and the stego look identical.' },
+      { q: 'Can I hide text and an image together?', a: 'Not yet. Each operation carries either text OR one image. Combined payloads are on the roadmap for a future release.' },
     ],
   },
   {
     category: 'Extracting Files',
     icon: Search,
     items: [
-      {
-        q: 'How do I extract a hidden secret?',
-        a: 'Go to Extract Secret, upload the stego file, turn on the password toggle (if the file was hidden with one), type the password, and click "Extract Hidden Secret". The payload appears instantly.',
-      },
-      {
-        q: 'What if I forgot the password?',
-        a: 'Unfortunately, passwords cannot be recovered — that is the whole point of encryption. Without the correct password, the payload remains locked. Always store your passwords in a password manager.',
-      },
-      {
-        q: 'Why am I getting an extraction error?',
-        a: 'Common causes: (1) Wrong password. (2) The file was compressed during transfer (e.g., via WhatsApp or Instagram). (3) The file wasn\'t created by StegaVault. (4) Backend version mismatch — try refreshing the page.',
-      },
-      {
-        q: 'Can I extract from a WhatsApp-received image?',
-        a: 'No. WhatsApp, Instagram, Telegram, and most messaging apps recompress images, which destroys the LSB data. Always share stego files as "Documents" or via direct download links.',
-      },
+      { q: 'How do I extract a hidden secret?', a: 'Go to Extract Secret, upload the stego file, turn on the password toggle (if the file was hidden with one), type the password, and click "Extract Hidden Secret". The payload appears instantly.' },
+      { q: 'What if I forgot the password?', a: 'Unfortunately, passwords cannot be recovered — that is the whole point of encryption. Without the correct password, the payload remains locked. Always store your passwords in a password manager.' },
+      { q: 'Why am I getting an extraction error?', a: 'Common causes: (1) Wrong password. (2) The file was compressed during transfer (e.g., via WhatsApp or Instagram). (3) The file wasn\'t created by StegaVault. (4) Backend version mismatch — try refreshing the page.' },
+      { q: 'Can I extract from a WhatsApp-received image?', a: 'No. WhatsApp, Instagram, Telegram, and most messaging apps recompress images, which destroys the LSB data. Always share stego files as "Documents" or via direct download links.' },
     ],
   },
   {
     category: 'Security & Privacy',
     icon: Shield,
     items: [
-      {
-        q: 'What encryption is used?',
-        a: 'Payloads are encrypted with AES-256-GCM before being embedded into pixels. This is industry-standard, the same family used by banks and government agencies.',
-      },
-      {
-        q: 'Is my data stored on servers?',
-        a: 'No. Your carrier and payload are processed in-memory on the backend, and the response is streamed directly to your browser. We do not persist any file. History metadata (filename, timestamp) is stored — never the content.',
-      },
-      {
-        q: 'How strong should my password be?',
-        a: 'At least 8 characters, ideally 12+. Mix uppercase, lowercase, numbers, and symbols. The live strength meter in the UI will guide you.',
-      },
-      {
-        q: 'Can I hide without a password?',
-        a: 'Yes, but the payload will be embedded unencrypted — anyone with StegaVault can extract it. Only use password-less mode for non-sensitive testing.',
-      },
+      { q: 'What encryption is used?', a: 'Payloads are encrypted with AES-256-GCM before being embedded into pixels. This is industry-standard, the same family used by banks and government agencies.' },
+      { q: 'Is my data stored on servers?', a: 'No. Your carrier and payload are processed in-memory on the backend, and the response is streamed directly to your browser. We do not persist any file. History metadata (filename, timestamp) is stored — never the content.' },
+      { q: 'How strong should my password be?', a: 'At least 8 characters, ideally 12+. Mix uppercase, lowercase, numbers, and symbols. The live strength meter in the UI will guide you.' },
+      { q: 'Can I hide without a password?', a: 'Yes, but the payload will be embedded unencrypted — anyone with StegaVault can extract it. Only use password-less mode for non-sensitive testing.' },
     ],
   },
   {
     category: 'Account',
     icon: User,
     items: [
-      {
-        q: 'How do I change my password?',
-        a: 'Go to Settings → Security tab. Enter your current password, set a new one, and click "Update Password".',
-      },
-      {
-        q: 'How do I delete my account?',
-        a: 'Go to Settings → Danger Zone tab. Type DELETE to confirm, then click "Permanently Delete Account". This removes everything — account, history, all data. Cannot be undone.',
-      },
-      {
-        q: 'Can I export my operation history?',
-        a: 'Not yet — but a CSV/JSON export option is coming soon. For now, you can browse your full history on the History page.',
-      },
+      { q: 'How do I change my password?', a: 'Go to Settings → Security tab. Enter your current password, set a new one, and click "Update Password".' },
+      { q: 'How do I delete my account?', a: 'Go to Settings → Danger Zone tab. Type DELETE to confirm, then click "Permanently Delete Account". This removes everything — account, history, all data. Cannot be undone.' },
+      { q: 'Can I export my operation history?', a: 'Not yet — but a CSV/JSON export option is coming soon. For now, you can browse your full history on the History page.' },
     ],
   },
 ]
+
+const QUICK_LINKS = [
+  { icon: Mail, title: 'Email Support', desc: 'Get a response within 24 hours.', action: 'mailto:support@stegavault.io', label: 'support@stegavault.io', color: 'text-[#10B981]', bg: 'bg-emerald-500/10' },
+  { icon: FileText, title: 'Documentation', desc: 'Detailed guides & API references.', action: '/docs', label: 'Read Docs →', color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+  { icon: LifeBuoy, title: 'Community', desc: 'Ask questions, share tips.', action: 'https://github.com', label: 'Join Community →', color: 'text-purple-400', bg: 'bg-purple-500/10' },
+] as const
 
 const KEYBOARD_SHORTCUTS = [
   { keys: ['Ctrl', 'H'], action: 'Go to Hide Secret' },
   { keys: ['Ctrl', 'E'], action: 'Go to Extract Secret' },
   { keys: ['Ctrl', 'K'], action: 'Open Quick Search' },
   { keys: ['Esc'], action: 'Close current modal / loader' },
-]
+] as const
+
+const NOTICE_STYLES: Record<Notice extends null ? never : 'success' | 'error' | 'info', { classes: string; icon: LucideIcon }> = {
+  success: { classes: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', icon: CheckCircle2 },
+  error:   { classes: 'bg-red-500/10 border-red-500/30 text-red-400',             icon: AlertCircle },
+  info:    { classes: 'bg-amber-500/10 border-amber-500/30 text-amber-400',       icon: Info },
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
 
 export default function Help() {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [openItem, setOpenItem] = useState<string | null>(null)
 
-  // Contact form
   const [contactEmail, setContactEmail] = useState('')
   const [contactSubject, setContactSubject] = useState('')
   const [contactMessage, setContactMessage] = useState('')
   const [contactLoading, setContactLoading] = useState(false)
-  const [contactSuccess, setContactSuccess] = useState<string | null>(null)
-  const [contactError, setContactError] = useState<string | null>(null)
+  const [contactNotice, setContactNotice] = useState<Notice>(null)
 
   const filteredCategories = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -159,7 +111,7 @@ export default function Help() {
           (item) =>
             !term ||
             item.q.toLowerCase().includes(term) ||
-            item.a.toLowerCase().includes(term)
+            item.a.toLowerCase().includes(term),
         ),
       }))
       .filter((cat) => cat.items.length > 0)
@@ -167,16 +119,24 @@ export default function Help() {
 
   const totalResults = filteredCategories.reduce((acc, c) => acc + c.items.length, 0)
 
-  const handleContactSubmit = async () => {
-    setContactError(null)
-    setContactSuccess(null)
+  const clearContactFields = () => {
+    setContactEmail('')
+    setContactSubject('')
+    setContactMessage('')
+  }
 
-    if (!contactEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
-      return setContactError('Please enter a valid email address.')
+  const handleContactSubmit = async () => {
+    setContactNotice(null)
+
+    if (!isValidEmail(contactEmail.trim())) {
+      return setContactNotice({ kind: 'error', text: 'Please enter a valid email address.' })
     }
-    if (!contactSubject.trim()) return setContactError('Please enter a subject.')
-    if (!contactMessage.trim() || contactMessage.trim().length < 10)
-      return setContactError('Message must be at least 10 characters.')
+    if (!contactSubject.trim()) {
+      return setContactNotice({ kind: 'error', text: 'Please enter a subject.' })
+    }
+    if (contactMessage.trim().length < 10) {
+      return setContactNotice({ kind: 'error', text: 'Message must be at least 10 characters.' })
+    }
 
     setContactLoading(true)
     try {
@@ -185,30 +145,27 @@ export default function Help() {
         subject: contactSubject,
         message: contactMessage,
       })
-      setContactSuccess("Message sent successfully. We'll respond within 24 hours.")
-      setContactEmail('')
-      setContactSubject('')
-      setContactMessage('')
-    } catch (err) {
-      // Fallback to mailto
-      const mailto = `mailto:support@stegavault.io?subject=${encodeURIComponent(
-        contactSubject
-      )}&body=${encodeURIComponent(contactMessage + '\n\nFrom: ' + contactEmail)}`
-      window.open(mailto, '_blank')
-      setContactSuccess('Opened your email client as fallback. Please send the message.')
+      setContactNotice({ kind: 'success', text: "Message sent successfully. We'll respond within 24 hours." })
+      clearContactFields()
+    } catch {
+      const mailto = `mailto:support@stegavault.io?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(`${contactMessage}\n\nFrom: ${contactEmail}`)}`
+      window.location.href = mailto
+      setContactNotice({
+        kind: 'info',
+        text: 'Form service is unavailable right now. We opened your email client — please send the message from there.',
+      })
+      clearContactFields()
     } finally {
       setContactLoading(false)
     }
   }
 
+  const noticeStyles = contactNotice ? NOTICE_STYLES[contactNotice.kind] : null
+  const NoticeIcon = noticeStyles?.icon
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-6 pb-20 selection:bg-emerald-500 selection:text-black">
-
-      <Loader
-        show={contactLoading}
-        title="Sending Message..."
-        subtitle="Encrypting and dispatching to our team"
-      />
+      <Loader show={contactLoading} title="Sending Message..." subtitle="Encrypting and dispatching to our team" />
 
       {/* HERO */}
       <div className="rounded-2xl bg-[#131920] border border-slate-800 p-6 md:p-8 flex items-center justify-between">
@@ -221,46 +178,16 @@ export default function Help() {
           <h1 className="text-2xl md:text-3xl font-extrabold text-white">
             How can we <span className="text-[#10B981]">help you?</span>
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Browse FAQs, read guides, or reach out to our team.
-          </p>
+          <p className="text-slate-400 text-sm mt-1">Browse FAQs, read guides, or reach out to our team.</p>
         </div>
         <HelpCircle size={48} className="text-emerald-500/20 hidden md:block" />
       </div>
 
       {/* QUICK LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          {
-            icon: Mail,
-            title: 'Email Support',
-            desc: 'Get a response within 24 hours.',
-            action: 'mailto:support@stegavault.io',
-            label: 'support@stegavault.io',
-            color: 'text-[#10B981]',
-            bg: 'bg-emerald-500/10',
-          },
-          {
-            icon: FileText,
-            title: 'Documentation',
-            desc: 'Detailed guides & API references.',
-            action: '/docs',
-            label: 'Read Docs →',
-            color: 'text-cyan-400',
-            bg: 'bg-cyan-500/10',
-          },
-          {
-            icon: LifeBuoy,
-            title: 'Community',
-            desc: 'Ask questions, share tips.',
-            action: 'https://github.com',
-            label: 'Join Community →',
-            color: 'text-purple-400',
-            bg: 'bg-purple-500/10',
-          },
-        ].map((link, i) => (
+        {QUICK_LINKS.map((link) => (
           <a
-            key={i}
+            key={link.title}
             href={link.action}
             target={link.action.startsWith('http') ? '_blank' : undefined}
             rel="noreferrer"
@@ -276,21 +203,17 @@ export default function Help() {
         ))}
       </div>
 
-      {/* FAQ SECTION */}
+      {/* FAQ */}
       <div className="rounded-2xl bg-[#131920] border border-slate-800 p-6 space-y-5">
-
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles size={16} className="text-[#10B981]" /> Frequently Asked Questions
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              {totalResults} {totalResults === 1 ? 'result' : 'results'} found
-            </p>
-          </div>
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Sparkles size={16} className="text-[#10B981]" /> Frequently Asked Questions
+          </h2>
+          <p className="text-xs text-slate-400 mt-1">
+            {totalResults} {totalResults === 1 ? 'result' : 'results'} found
+          </p>
         </div>
 
-        {/* Search bar */}
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
@@ -302,9 +225,10 @@ export default function Help() {
           />
         </div>
 
-        {/* Category pills */}
         <div className="flex flex-wrap gap-2">
           <button
+            type="button"
+            aria-pressed={activeCategory === 'all'}
             onClick={() => setActiveCategory('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
               activeCategory === 'all'
@@ -317,6 +241,8 @@ export default function Help() {
           {FAQ_DATA.map((cat) => (
             <button
               key={cat.category}
+              type="button"
+              aria-pressed={activeCategory === cat.category}
               onClick={() => setActiveCategory(cat.category)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
                 activeCategory === cat.category
@@ -329,7 +255,6 @@ export default function Help() {
           ))}
         </div>
 
-        {/* FAQ accordion */}
         <div className="space-y-5">
           {filteredCategories.length === 0 ? (
             <div className="text-center py-12">
@@ -338,10 +263,8 @@ export default function Help() {
               <p className="text-xs text-slate-400 mt-1">
                 Try different keywords or{' '}
                 <button
-                  onClick={() => {
-                    setSearch('')
-                    setActiveCategory('all')
-                  }}
+                  type="button"
+                  onClick={() => { setSearch(''); setActiveCategory('all') }}
                   className="text-[#10B981] hover:underline"
                 >
                   clear filters
@@ -358,26 +281,25 @@ export default function Help() {
                 {cat.items.map((item, idx) => {
                   const itemKey = `${cat.category}-${idx}`
                   const isOpen = openItem === itemKey
+                  const panelId = `faq-panel-${itemKey}`
                   return (
-                    <div
-                      key={itemKey}
-                      className="rounded-xl bg-[#0B0F14] border border-slate-800 overflow-hidden"
-                    >
+                    <div key={itemKey} className="rounded-xl bg-[#0B0F14] border border-slate-800 overflow-hidden">
                       <button
+                        type="button"
                         onClick={() => setOpenItem(isOpen ? null : itemKey)}
+                        aria-expanded={isOpen}
+                        aria-controls={panelId}
                         className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-slate-900/30 transition-colors"
                       >
                         <span className="text-xs font-bold text-white flex-1">{item.q}</span>
-                        <motion.div
-                          animate={{ rotate: isOpen ? 180 : 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
+                        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
                           <ChevronDown size={14} className="text-slate-400" />
                         </motion.div>
                       </button>
                       <AnimatePresence initial={false}>
                         {isOpen && (
                           <motion.div
+                            id={panelId}
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -404,18 +326,12 @@ export default function Help() {
           <Keyboard size={16} className="text-[#10B981]" /> Keyboard Shortcuts
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {KEYBOARD_SHORTCUTS.map((s, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between p-3 rounded-lg bg-[#0B0F14] border border-slate-800"
-            >
+          {KEYBOARD_SHORTCUTS.map((s) => (
+            <div key={s.action} className="flex items-center justify-between p-3 rounded-lg bg-[#0B0F14] border border-slate-800">
               <span className="text-xs text-slate-400">{s.action}</span>
               <div className="flex items-center gap-1">
                 {s.keys.map((k) => (
-                  <kbd
-                    key={k}
-                    className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-white"
-                  >
+                  <kbd key={k} className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-white">
                     {k}
                   </kbd>
                 ))}
@@ -437,32 +353,24 @@ export default function Help() {
         </div>
 
         <AnimatePresence>
-          {contactSuccess && (
+          {contactNotice && noticeStyles && NoticeIcon && (
             <motion.div
+              key={contactNotice.kind}
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2"
+              className={`p-3 rounded-lg border text-xs flex items-center gap-2 ${noticeStyles.classes}`}
             >
-              <CheckCircle2 size={14} /> {contactSuccess}
-            </motion.div>
-          )}
-          {contactError && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2"
-            >
-              <AlertCircle size={14} /> {contactError}
+              <NoticeIcon size={14} /> {contactNotice.text}
             </motion.div>
           )}
         </AnimatePresence>
 
         <div className="grid md:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400">Your Email</label>
+            <label htmlFor="contact-email" className="text-xs font-bold text-slate-400">Your Email</label>
             <input
+              id="contact-email"
               type="email"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
@@ -471,8 +379,9 @@ export default function Help() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400">Subject</label>
+            <label htmlFor="contact-subject" className="text-xs font-bold text-slate-400">Subject</label>
             <input
+              id="contact-subject"
               type="text"
               value={contactSubject}
               onChange={(e) => setContactSubject(e.target.value)}
@@ -483,8 +392,9 @@ export default function Help() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-400">Message</label>
+          <label htmlFor="contact-message" className="text-xs font-bold text-slate-400">Message</label>
           <textarea
+            id="contact-message"
             rows={5}
             value={contactMessage}
             onChange={(e) => setContactMessage(e.target.value)}
@@ -498,6 +408,7 @@ export default function Help() {
             <Lock size={10} /> Your message is encrypted in transit.
           </p>
           <button
+            type="button"
             onClick={handleContactSubmit}
             disabled={contactLoading}
             className="px-5 py-2.5 rounded-lg bg-[#10B981] text-black font-bold text-sm hover:bg-emerald-400 disabled:opacity-50 flex items-center gap-2"
@@ -505,9 +416,7 @@ export default function Help() {
             {contactLoading ? (
               <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
             ) : (
-              <>
-                <Send size={14} /> Send Message
-              </>
+              <><Send size={14} /> Send Message</>
             )}
           </button>
         </div>

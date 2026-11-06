@@ -1,9 +1,10 @@
 ﻿import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Home, ArrowLeft, Lock, ShieldAlert, Compass } from 'lucide-react'
 
-// Module-level constant — no hook needed, computed once on import
-const BINARY_DIGITS = Array.from({ length: 30 }, () => ({
+// Module-level constant — computed once on import
+const BINARY_DIGITS = Array.from({ length: 30 }, (_, i) => ({
+  id: `bit-${i}`,
   char: Math.random() > 0.5 ? '1' : '0',
   left: `${Math.random() * 100}%`,
   top: `${Math.random() * 100}%`,
@@ -12,14 +13,20 @@ const BINARY_DIGITS = Array.from({ length: 30 }, () => ({
 }))
 
 export default function NotFound() {
+  const navigate = useNavigate()
+
+  const handleBack = () => {
+    if (window.history.length > 2) navigate(-1)
+    else navigate('/dashboard')
+  }
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center relative overflow-hidden">
-
-      {/* Floating binary rain background */}
-      <div className="absolute inset-0 pointer-events-none">
-        {BINARY_DIGITS.map((d, i) => (
+      {/* Floating binary rain background (decorative) */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        {BINARY_DIGITS.map((d) => (
           <motion.span
-            key={i}
+            key={d.id}
             className="absolute text-[#10B981]/30 font-mono text-xs select-none"
             style={{ left: d.left, top: d.top }}
             animate={{ y: [0, 30, 0], opacity: [0.1, 0.7, 0.1] }}
@@ -80,7 +87,8 @@ export default function NotFound() {
             <Home size={14} /> Back to Dashboard
           </Link>
           <button
-            onClick={() => window.history.back()}
+            type="button"
+            onClick={handleBack}
             className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
           >
             <ArrowLeft size={14} /> Go Back
@@ -88,13 +96,20 @@ export default function NotFound() {
         </div>
 
         {/* Footer code tag */}
-        <div className="mt-10 flex items-center justify-center gap-3 text-[10px] text-slate-600 font-mono">
+        <div className="mt-10 flex items-center justify-center gap-3 text-[10px] text-slate-600 font-mono flex-wrap">
           <span className="flex items-center gap-1">
             <Lock size={10} /> 0x04 — ROUTE_NOT_FOUND
           </span>
           <span>•</span>
           <span className="flex items-center gap-1">
-            <Compass size={10} /> Try /dashboard or /help
+            <Compass size={10} /> Try{' '}
+            <Link to="/dashboard" className="hover:text-[#10B981] transition-colors">
+              /dashboard
+            </Link>{' '}
+            or{' '}
+            <Link to="/help" className="hover:text-[#10B981] transition-colors">
+              /help
+            </Link>
           </span>
         </div>
       </motion.div>

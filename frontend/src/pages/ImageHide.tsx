@@ -1,10 +1,11 @@
 ﻿import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield, Image as ImageIcon, Music, Video, Globe,
   Upload, FileText, Lock, CheckCircle2, AlertCircle,
   Eye, EyeOff, ArrowRight, Download, RefreshCw, X,
-  ShieldCheck, KeyRound, ArrowLeft
+  ShieldCheck, KeyRound, ArrowLeft,
 } from 'lucide-react'
 import { api, getApiErrorMessage } from '../lib/api'
 import Loader from '../components/Loader'
@@ -12,14 +13,56 @@ import Loader from '../components/Loader'
 type Step = 1 | 2 | 3 | 4 | 5
 type Operation = 'image' | 'audio' | 'video' | 'cross'
 type PayloadType = 'text' | 'image'
+type EmbedResult = { url: string; name: string; isEncrypted: boolean }
+
+const STRENGTH_LABELS = ['Weak', 'Weak', 'Medium', 'Strong', 'Very Strong'] as const
+const STRENGTH_BG = ['bg-red-500', 'bg-red-500', 'bg-amber-500', 'bg-emerald-500', 'bg-emerald-400'] as const
+const STRENGTH_TEXT = ['text-red-500', 'text-red-500', 'text-amber-500', 'text-emerald-500', 'text-emerald-400'] as const
+
+const OPERATIONS = [
+  { id: 'image', title: 'Image Hide', desc: 'PNG, JPG, BMP', icon: ImageIcon, active: true },
+  { id: 'audio', title: 'Audio Hide', desc: 'WAV, MP3', icon: Music, active: true },
+  { id: 'video', title: 'Video Hide', desc: 'MP4, AVI', icon: Video, active: false },
+  { id: 'cross', title: 'Cross Media', desc: 'Any to Any', icon: Globe, active: false },
+] as const
+
+const STEPS = [
+  { num: 1, label: 'Operation' },
+  { num: 2, label: 'Carrier' },
+  { num: 3, label: 'Payload' },
+  { num: 4, label: 'Embed' },
+] as const
+
+function getStrength(pass: string): number {
+  let score = 0
+  if (pass.length >= 8) score++
+  if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++
+  if (/\d/.test(pass)) score++
+  if (/[^A-Za-z0-9]/.test(pass)) score++
+  return score
+}
+
+function BackButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-1"
+    >
+      <ArrowLeft size={12} /> {label}
+    </button>
+  )
+}
 
 export default function ImageHide() {
+  const navigate = useNavigate()
+
   const [step, setStep] = useState<Step>(1)
   const [operation, setOperation] = useState<Operation>('image')
 
   const [carrier, setCarrier] = useState<File | null>(null)
   const [carrierPreview, setCarrierPreview] = useState<string | null>(null)
-  const [capacity, setCapacity] = useState<number>(0)
+  const [capacity, setCapacity] = useState(0)
 
   const [payloadType, setPayloadType] = useState<PayloadType>('text')
   const [secretText, setSecretText] = useState('')
@@ -34,28 +77,30 @@ export default function ImageHide() {
   const [loaderTitle, setLoaderTitle] = useState('Processing...')
   const [loaderSubtitle, setLoaderSubtitle] = useState('Please wait.')
   const [error, setError] = useState<string | null>(null)
-  const [results, setResults] = useState<{ url: string; name: string; isEncrypted: boolean }[]>([])
+  const [results, setResults] = useState<EmbedResult[]>([])
 
-  const getStrength = (pass: string) => {
-    let score = 0
-    if (pass.length >= 8) score++
-    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++
-    if (/\d/.test(pass)) score++
-    if (/[^A-Za-z0-9]/.test(pass)) score++
-    return score
-  }
-  const strength = getStrength(password)
-  const strengthLabels = ['Weak', 'Weak', 'Medium', 'Strong', 'Very Strong']
-  const strengthColors = ['bg-red-500', 'bg-red-500', 'bg-amber-500', 'bg-emerald-500', 'bg-emerald-400']
+  // Each URL revokes only when its own state changes
+  useEffect(() => {
+    if (!carrierPreview) return
+    return () => URL.revokeObjectURL(carrierPreview)
+  }, [carrierPreview])
 
   useEffect(() => {
-    return () => {
-      if (carrierPreview) URL.revokeObjectURL(carrierPreview)
-      results.forEach((r) => URL.revokeObjectURL(r.url))
-    }
-  }, [carrierPreview, results])
+    if (results.length === 0) return
+    return () => results.forEach((r) => URL.revokeObjectURL(r.url))
+  }, [results])
+
+  const clearCarrier = () => {
+    setCarrier(null)
+    setCarrierPreview(null)
+    setCapacity(0)
+  }
 
   const handleCarrierUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload a valid image file.')
+      return
+    }
     setError(null)
     setLoaderTitle('Analyzing Carrier...')
     setLoaderSubtitle('Checking file capacity & format')
@@ -70,7 +115,7 @@ export default function ImageHide() {
       setStep(3)
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to analyze capacity'))
-      setCarrier(null)
+      clearCarrier()
     } finally {
       setLoading(false)
     }
@@ -83,35 +128,39 @@ export default function ImageHide() {
     setLoaderSubtitle(
       usePassword
         ? 'AES-256 encrypting payload, then embedding into pixels'
-        : 'Embedding payload into carrier pixels'
+        : 'Embedding payload into carrier pixels',
     )
     setLoading(true)
-    const newResults: { url: string; name: string; isEncrypted: boolean }[] = []
+
+    // Track URLs so we can revoke them if the request fails midway
+    const createdUrls: string[] = []
 
     try {
-      const makeRequest = async (withPassword: boolean) => {
+      const makeRequest = async (withPassword: boolean): Promise<EmbedResult> => {
         const formData = new FormData()
         formData.append('cover', carrier)
         if (payloadType === 'text') formData.append('secret', secretText)
-        else formData.append('secret_image', secretImage!)
+        else if (secretImage) formData.append('secret_image', secretImage)
         if (withPassword) formData.append('password', password)
+
         const res = await api.post('/stego/hide', formData, { responseType: 'blob' })
+        const url = URL.createObjectURL(new Blob([res.data], { type: 'image/png' }))
+        createdUrls.push(url)
         return {
-          url: URL.createObjectURL(new Blob([res.data], { type: 'image/png' })),
+          url,
           name: withPassword ? `secure_${carrier.name}` : `raw_${carrier.name}`,
           isEncrypted: withPassword,
         }
       }
 
-      if (usePassword) {
-        const [secure, raw] = await Promise.all([makeRequest(true), makeRequest(false)])
-        newResults.push(secure, raw)
-      } else {
-        newResults.push(await makeRequest(false))
-      }
+      const newResults = usePassword
+        ? await Promise.all([makeRequest(true), makeRequest(false)])
+        : [await makeRequest(false)]
+
       setResults(newResults)
       setStep(5)
     } catch (err) {
+      createdUrls.forEach(URL.revokeObjectURL)
       setError(getApiErrorMessage(err, 'Embedding failed.'))
     } finally {
       setLoading(false)
@@ -120,24 +169,32 @@ export default function ImageHide() {
 
   const resetAll = () => {
     setStep(1)
-    setCarrier(null)
-    setCarrierPreview(null)
+    setOperation('image')
+    clearCarrier()
+    setPayloadType('text')
     setSecretText('')
     setSecretImage(null)
+    setUsePassword(true)
     setPassword('')
     setConfirmPassword('')
+    setShowPassword(false)
     setResults([])
     setError(null)
   }
 
-  const isPayloadValid = payloadType === 'text' ? secretText.trim().length > 0 : secretImage !== null
-  const isPasswordValid = !usePassword || (password.length >= 8 && password === confirmPassword)
-  const canEmbed = isPayloadValid && isPasswordValid && !loading
+  const strength = getStrength(password)
+  const textBytes = new TextEncoder().encode(secretText).length
+  const payloadBytes = payloadType === 'text' ? textBytes : secretImage?.size ?? 0
+
+  const isPayloadValid =
+    payloadType === 'text' ? secretText.trim().length > 0 : secretImage !== null
+  const isCapacityOk = payloadBytes > 0 && payloadBytes <= capacity
+  const isPasswordValid =
+    !usePassword || (password.length >= 8 && password === confirmPassword)
+  const canEmbed = isPayloadValid && isCapacityOk && isPasswordValid && !loading
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-6 pb-20 selection:bg-emerald-500 selection:text-black">
-
-      {/* Premium fullscreen loader */}
       <Loader show={loading} title={loaderTitle} subtitle={loaderSubtitle} />
 
       {/* HERO */}
@@ -164,18 +221,11 @@ export default function ImageHide() {
 
       {/* STEPS INDICATOR */}
       <div className="flex bg-[#131920] border border-slate-800 rounded-2xl p-2">
-        {[
-          { num: 1, label: 'Operation' },
-          { num: 2, label: 'Carrier' },
-          { num: 3, label: 'Payload' },
-          { num: 4, label: 'Embed' },
-        ].map((s, i) => (
+        {STEPS.map((s, i) => (
           <div key={s.num} className="flex-1 flex items-center">
             <button
               type="button"
-              onClick={() => {
-                if (s.num < step) setStep(s.num as Step)
-              }}
+              onClick={() => { if (s.num < step) setStep(s.num) }}
               disabled={s.num >= step}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl w-full text-left transition-all ${
                 step === s.num
@@ -204,35 +254,25 @@ export default function ImageHide() {
                 {s.label}
               </span>
             </button>
-            {i < 3 && <div className="w-full h-px bg-slate-800 mx-2" />}
+            {i < STEPS.length - 1 && <div className="w-full h-px bg-slate-800 mx-2" />}
           </div>
         ))}
       </div>
 
       <AnimatePresence mode="wait">
-
         {/* STEP 1 */}
         {step === 1 && (
-          <motion.div
-            key="s1"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
+          <motion.div key="s1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <h2 className="text-lg font-bold text-white">Choose Your Operation</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { id: 'image', title: 'Image Hide', desc: 'PNG, JPG, BMP', icon: ImageIcon, active: true },
-                { id: 'audio', title: 'Audio Hide', desc: 'WAV, MP3', icon: Music, active: true },
-                { id: 'video', title: 'Video Hide', desc: 'MP4, AVI', icon: Video, active: false },
-                { id: 'cross', title: 'Cross Media', desc: 'Any to Any', icon: Globe, active: false },
-              ].map((op) => (
+              {OPERATIONS.map((op) => (
                 <button
                   key={op.id}
+                  type="button"
                   disabled={!op.active}
                   onClick={() => {
-                    if (op.id === 'audio') { window.location.href = '/stego/audio'; return; }
-                    setOperation(op.id as Operation)
+                    if (op.id === 'audio') return navigate('/stego/audio')
+                    setOperation(op.id)
                     setStep(2)
                   }}
                   className={`p-5 rounded-2xl border text-left relative transition-all flex flex-col justify-between h-[140px] ${
@@ -263,21 +303,10 @@ export default function ImageHide() {
 
         {/* STEP 2 */}
         {step === 2 && (
-          <motion.div
-            key="s2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
+          <motion.div key="s2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white">Upload Carrier File</h2>
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-1"
-              >
-                <ArrowLeft size={12} /> Back to Operation
-              </button>
+              <BackButton onClick={() => setStep(1)} label="Back to Operation" />
             </div>
 
             {!carrier ? (
@@ -286,7 +315,8 @@ export default function ImageHide() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault()
-                  if (e.dataTransfer.files[0]) handleCarrierUpload(e.dataTransfer.files[0])
+                  const file = e.dataTransfer.files[0]
+                  if (file) handleCarrierUpload(file)
                 }}
                 className="border-2 border-dashed border-slate-700 bg-[#131920] rounded-2xl p-8 text-center cursor-pointer hover:border-[#10B981]/50 transition-all h-[220px] flex flex-col items-center justify-center"
               >
@@ -296,7 +326,8 @@ export default function ImageHide() {
                   accept="image/*"
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files?.[0]) handleCarrierUpload(e.target.files[0])
+                    const file = e.target.files?.[0]
+                    if (file) handleCarrierUpload(file)
                   }}
                 />
                 <Upload size={32} className="text-[#10B981] mb-3" />
@@ -320,10 +351,9 @@ export default function ImageHide() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    setCarrier(null)
-                    setCarrierPreview(null)
-                  }}
+                  type="button"
+                  onClick={clearCarrier}
+                  aria-label="Remove carrier"
                   className="p-1.5 text-slate-400 hover:text-red-400 bg-slate-800 rounded-lg"
                 >
                   <X size={14} />
@@ -335,44 +365,30 @@ export default function ImageHide() {
 
         {/* STEP 3 */}
         {step === 3 && (
-          <motion.div
-            key="s3"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
+          <motion.div key="s3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white">Add Secret Payload</h2>
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-1"
-              >
-                <ArrowLeft size={12} /> Back to Carrier
-              </button>
+              <BackButton onClick={() => setStep(2)} label="Back to Carrier" />
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               {/* Payload */}
               <div className="rounded-2xl bg-[#131920] border border-slate-800 p-5 space-y-3">
                 <div className="flex gap-2 p-1 bg-[#0B0F14] border border-slate-800 rounded-lg">
-                  <button
-                    onClick={() => setPayloadType('text')}
-                    className={`flex-1 py-1.5 rounded-md text-xs font-bold ${
-                      payloadType === 'text' ? 'bg-slate-800 text-white' : 'text-slate-500'
-                    }`}
-                  >
-                    Text
-                  </button>
-                  <button
-                    onClick={() => setPayloadType('image')}
-                    className={`flex-1 py-1.5 rounded-md text-xs font-bold ${
-                      payloadType === 'image' ? 'bg-slate-800 text-white' : 'text-slate-500'
-                    }`}
-                  >
-                    Image
-                  </button>
+                  {(['text', 'image'] as const).map((pt) => (
+                    <button
+                      key={pt}
+                      type="button"
+                      onClick={() => setPayloadType(pt)}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-bold capitalize ${
+                        payloadType === pt ? 'bg-slate-800 text-white' : 'text-slate-500'
+                      }`}
+                    >
+                      {pt}
+                    </button>
+                  ))}
                 </div>
+
                 {payloadType === 'text' ? (
                   <>
                     <textarea
@@ -382,35 +398,37 @@ export default function ImageHide() {
                       placeholder="Type your secret message..."
                       className="w-full bg-[#0B0F14] border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-600 focus:border-[#10B981] outline-none resize-none"
                     />
-                    <p
-                      className={`text-[10px] ${
-                        new TextEncoder().encode(secretText).length > capacity
-                          ? 'text-red-400'
-                          : 'text-slate-500'
-                      }`}
-                    >
-                      {new TextEncoder().encode(secretText).length} / {capacity} bytes
+                    <p className={`text-[10px] ${textBytes > capacity ? 'text-red-400' : 'text-slate-500'}`}>
+                      {textBytes} / {capacity} bytes
                     </p>
                   </>
                 ) : (
-                  <div
-                    className="border-2 border-dashed border-slate-700 bg-[#0B0F14] rounded-xl p-6 text-center cursor-pointer hover:border-[#10B981]/50"
-                    onClick={() => document.getElementById('p-in')?.click()}
-                  >
-                    <input
-                      id="p-in"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) setSecretImage(e.target.files[0])
-                      }}
-                    />
-                    <ImageIcon size={20} className="mx-auto text-slate-500 mb-2" />
-                    <p className="text-xs font-bold text-white">
-                      {secretImage ? secretImage.name : 'Upload Secret Image'}
-                    </p>
-                  </div>
+                  <>
+                    <div
+                      className="border-2 border-dashed border-slate-700 bg-[#0B0F14] rounded-xl p-6 text-center cursor-pointer hover:border-[#10B981]/50"
+                      onClick={() => document.getElementById('p-in')?.click()}
+                    >
+                      <input
+                        id="p-in"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) setSecretImage(file)
+                        }}
+                      />
+                      <ImageIcon size={20} className="mx-auto text-slate-500 mb-2" />
+                      <p className="text-xs font-bold text-white">
+                        {secretImage ? secretImage.name : 'Upload Secret Image'}
+                      </p>
+                    </div>
+                    {secretImage && (
+                      <p className={`text-[10px] ${payloadBytes > capacity ? 'text-red-400' : 'text-slate-500'}`}>
+                        {payloadBytes} / {capacity} bytes
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -421,16 +439,17 @@ export default function ImageHide() {
                     <KeyRound size={14} className="text-[#10B981]" /> Password Protection
                   </h3>
                   <button
-                    onClick={() => setUsePassword(!usePassword)}
-                    className={`w-8 h-4 rounded-full relative transition-colors ${
-                      usePassword ? 'bg-[#10B981]' : 'bg-slate-700'
-                    }`}
+                    type="button"
+                    role="switch"
+                    aria-checked={usePassword}
+                    aria-label="Toggle password protection"
+                    onClick={() => setUsePassword((v) => !v)}
+                    className={`w-9 h-5 rounded-full relative transition-colors ${usePassword ? 'bg-[#10B981]' : 'bg-slate-700'}`}
                   >
-                    <div
-                      className={`w-3 h-3 rounded-full bg-white absolute transition-transform ${
+                    <span
+                      className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
                         usePassword ? 'translate-x-4' : 'translate-x-0.5'
                       }`}
-                      style={{ top: '2px' }}
                     />
                   </button>
                 </div>
@@ -442,10 +461,12 @@ export default function ImageHide() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Password"
-                        className="w-full bg-[#0B0F14] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-[#10B981] outline-none"
+                        className="w-full bg-[#0B0F14] border border-slate-800 rounded-lg px-3 py-2 pr-10 text-xs text-white focus:border-[#10B981] outline-none"
                       />
                       <button
-                        onClick={() => setShowPassword(!showPassword)}
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                         className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500"
                       >
                         {showPassword ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -462,12 +483,12 @@ export default function ImageHide() {
                       {[0, 1, 2, 3].map((i) => (
                         <div
                           key={i}
-                          className={`flex-1 ${i < strength ? strengthColors[strength] : 'bg-slate-800'}`}
+                          className={`flex-1 ${i < strength ? STRENGTH_BG[strength] : 'bg-slate-800'}`}
                         />
                       ))}
                     </div>
-                    <p className={`text-[10px] font-bold ${strengthColors[strength].replace('bg-', 'text-')}`}>
-                      {strengthLabels[strength]}
+                    <p className={`text-[10px] font-bold ${STRENGTH_TEXT[strength]}`}>
+                      {STRENGTH_LABELS[strength]}
                     </p>
                   </div>
                 ) : (
@@ -479,6 +500,7 @@ export default function ImageHide() {
             </div>
 
             <button
+              type="button"
               onClick={() => setStep(4)}
               disabled={!canEmbed}
               className="w-full py-3 rounded-xl bg-[#10B981] text-black font-bold text-sm hover:bg-emerald-400 disabled:opacity-50 flex items-center justify-center gap-2"
@@ -490,21 +512,10 @@ export default function ImageHide() {
 
         {/* STEP 4 */}
         {step === 4 && (
-          <motion.div
-            key="s4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
+          <motion.div key="s4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white">Review & Embed</h2>
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-1"
-              >
-                <ArrowLeft size={12} /> Back to Payload
-              </button>
+              <BackButton onClick={() => setStep(3)} label="Back to Payload" />
             </div>
 
             <div className="rounded-2xl bg-[#131920] border border-slate-800 p-5 space-y-3 text-xs">
@@ -529,6 +540,7 @@ export default function ImageHide() {
             </div>
 
             <button
+              type="button"
               onClick={handleEmbed}
               disabled={loading}
               className="w-full py-4 rounded-xl bg-[#10B981] text-black font-extrabold text-base hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2"
@@ -537,7 +549,8 @@ export default function ImageHide() {
                 <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <ShieldCheck size={18} /> ENCRYPT & HIDE SECRET
+                  <ShieldCheck size={18} />
+                  {usePassword ? 'ENCRYPT & HIDE SECRET' : 'HIDE SECRET'}
                 </>
               )}
             </button>
@@ -546,12 +559,7 @@ export default function ImageHide() {
 
         {/* STEP 5 */}
         {step === 5 && (
-          <motion.div
-            key="s5"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="space-y-4"
-          >
+          <motion.div key="s5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
             <div className="text-center py-4">
               <CheckCircle2 size={48} className="text-[#10B981] mx-auto mb-3" />
               <h2 className="text-xl font-bold text-white">Secret Embedded Successfully</h2>
@@ -559,16 +567,14 @@ export default function ImageHide() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              {results.map((res, i) => (
+              {results.map((res) => (
                 <div
-                  key={i}
+                  key={res.url}
                   className="rounded-2xl bg-[#131920] border border-slate-800 p-5 text-center space-y-3"
                 >
                   <div
                     className={`w-10 h-10 rounded-full mx-auto flex items-center justify-center ${
-                      res.isEncrypted
-                        ? 'bg-[#10B981]/10 text-[#10B981]'
-                        : 'bg-amber-500/10 text-amber-500'
+                      res.isEncrypted ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-amber-500/10 text-amber-500'
                     }`}
                   >
                     {res.isEncrypted ? <Lock size={16} /> : <FileText size={16} />}
@@ -590,6 +596,7 @@ export default function ImageHide() {
             </div>
 
             <button
+              type="button"
               onClick={resetAll}
               className="w-full py-2 rounded-xl border border-slate-700 text-white text-xs font-bold hover:bg-slate-800 flex items-center justify-center gap-1.5"
             >
@@ -601,4 +608,3 @@ export default function ImageHide() {
     </div>
   )
 }
-
